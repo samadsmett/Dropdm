@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DropDM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #E7E8EB;
+  --panel: #F6F6F8;
+  --raised: #FFFFFF;
+  --ink: #1B1E25;
+  --muted: #646B7A;
+  --line: #D3D5DB;
+  --focus: #3B4CCA;
+  --primary: #1B1E25;
+  --on-primary: #FFFFFF;
+  /* clip label colours, like an edit timeline */
+  --c-comment: #6E76F0;
+  --c-dm: #E59A2F;
+  --c-story: #1FA594;
+  --ok: #1E8A55;
+  --bad: #C2413A;
+  --bubble: #3B4CCA;
+  --on-bubble: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #15171C;
+    --panel: #1D2027;
+    --raised: #252932;
+    --ink: #ECEDF1;
+    --muted: #9AA0AE;
+    --line: #333844;
+    --focus: #8E9BFF;
+    --primary: #ECEDF1;
+    --on-primary: #15171C;
+    --c-comment: #8A90FF;
+    --c-dm: #F2AE4E;
+    --c-story: #3CC4B1;
+    --ok: #4CC487;
+    --bad: #F0736B;
+    --bubble: #5465E0;
+    --on-bubble: #FFFFFF;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.5 "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom); }
+h1, h2, h3 { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 18px; }
+
+header { padding: 26px 0 8px; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand h1 { font-size: 30px; }
+.brand .handle { color: var(--muted); font-size: 15px; }
+.pulse { margin: 8px 0 0; color: var(--muted); font-size: 14px; max-width: 62ch; }
+.pulse b { color: var(--ink); font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px; }
+.dot.live { background: var(--ok); }
+.dot.off { background: var(--bad); }
+
+nav { display: flex; gap: 4px; margin: 18px 0 0; border-bottom: 1px solid var(--line); }
+nav button { background: none; border: 0; padding: 10px 12px 12px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; }
+nav button[aria-selected="true"] { color: var(--ink); border-color: var(--ink); }
+
+main { padding: 20px 0 60px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--raised); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* automation rows: clips on a track */
+.track { display: flex; flex-direction: column; gap: 8px; }
+.clip { display: grid; grid-template-columns: 6px 1fr auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.clip .label { background: var(--c); }
+.clip[data-t="comment"] { --c: var(--c-comment); }
+.clip[data-t="dm"] { --c: var(--c-dm); }
+.clip[data-t="story_reply"] { --c: var(--c-story); }
+.clip.paused { opacity: .55; }
+.clip .body { padding: 12px 14px; min-width: 0; cursor: pointer; background: none; border: 0; text-align: left; }
+.clip h3 { font-size: 17px; }
+.clip .meta { color: var(--muted); font-size: 13.5px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kw { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); font-size: 12.5px; margin: 6px 4px 0 0; }
+.clip .side { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; padding: 10px 14px; }
+.count { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+.switch { position: relative; width: 40px; height: 24px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--raised); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.switch input:checked + span { background: var(--ok); }
+.switch input:checked + span::after { transform: translateX(16px); }
+.switch input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.empty { padding: 34px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
+.empty p { margin: 0 0 14px; }
+
+.tester { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.tester h2 { font-size: 18px; margin-bottom: 4px; }
+.tester p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > * { flex: 1 1 160px; }
+.result { margin-top: 10px; font-size: 14px; }
+
+/* fields */
+label.f { display: block; margin-bottom: 16px; }
+label.f > span, .f-label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.hint { color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 4px; display: block; }
+input[type=text], input[type=url], textarea, select { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+textarea { min-height: 96px; resize: vertical; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { flex: 1 1 auto; padding: 9px 10px; border: 1px solid var(--line); background: var(--raised); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; }
+.seg button i { width: 10px; height: 10px; border-radius: 2px; }
+.seg button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 600; }
+.check { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.check:last-of-type { border-bottom: 1px solid var(--line); }
+
+/* editor sheet */
+.sheet { position: fixed; inset: 0; background: rgba(10, 12, 16, .45); display: none; z-index: 10; }
+.sheet.open { display: block; }
+.sheet .panel { position: absolute; right: 0; top: 0; bottom: 0; width: min(560px, 100%); background: var(--bg); overflow-y: auto; padding: 22px 20px calc(28px + env(safe-area-inset-bottom)); }
+.sheet header { display: flex; justify-content: space-between; align-items: center; padding: 0 0 16px; }
+.sheet h2 { font-size: 22px; }
+.close { background: none; border: 0; font-size: 26px; line-height: 1; cursor: pointer; color: var(--muted); padding: 4px 8px; }
+
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; margin-top: 8px; }
+.media-grid button { padding: 0; border: 2px solid transparent; border-radius: 6px; overflow: hidden; aspect-ratio: 4/5; background: var(--panel); cursor: pointer; position: relative; }
+.media-grid button[aria-pressed="true"] { border-color: var(--focus); }
+.media-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media-grid .cap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; padding: 4px; color: var(--muted); text-align: center; }
+
+/* the DM preview: the one bold thing */
+.preview { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 4px 0 20px; }
+.preview .who { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; text-align: center; }
+.bubble-in { width: fit-content; max-width: 78%; background: var(--raised); border: 1px solid var(--line); padding: 8px 12px; border-radius: 18px 18px 18px 4px; margin-bottom: 8px; font-size: 14.5px; word-wrap: break-word; }
+.bubble-out { width: fit-content; max-width: 82%; margin-left: auto; background: var(--bubble); color: var(--on-bubble); padding: 9px 13px; border-radius: 18px 18px 4px 18px; font-size: 14.5px; white-space: pre-wrap; word-wrap: break-word; }
+.bubble-btn { width: fit-content; min-width: 140px; max-width: 82%; margin: 4px 0 0 auto; text-align: center; padding: 9px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); font-weight: 600; font-size: 14px; }
+.public { margin-top: 12px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+
+.sheet .actions { display: flex; gap: 8px; justify-content: space-between; margin-top: 22px; }
+.err { color: var(--bad); font-size: 14px; margin-top: 10px; min-height: 1em; }
+
+/* activity */
+.log { display: flex; flex-direction: column; }
+.ev { display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--line); align-items: start; }
+.ev .tag { width: 10px; height: 10px; border-radius: 2px; margin-top: 6px; }
+.ev .tag.comment { background: var(--c-comment); } .ev .tag.dm { background: var(--c-dm); } .ev .tag.story_reply { background: var(--c-story); }
+.ev .line1 { font-weight: 600; }
+.ev .said { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev .when { text-align: right; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.st-sent { color: var(--ok); } .st-failed { color: var(--bad); } .st-queued, .st-skipped { color: var(--muted); }
+.ev .detail { font-size: 13px; color: var(--bad); }
+
+/* setup */
+.steps { display: flex; flex-direction: column; gap: 0; }
+.step { display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.step .mark { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; border: 2px solid var(--line); color: var(--muted); }
+.step.done .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+.step.todo .mark { border-color: var(--bad); color: var(--bad); }
+.step h3 { font-size: 16px; }
+.step p { margin: 3px 0 0; color: var(--muted); font-size: 14px; }
+.step .row { margin-top: 10px; }
+code.url { display: block; padding: 10px 12px; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; word-break: break-all; margin-top: 8px; }
+.banner { background: var(--panel); border: 1px solid var(--c-dm); border-left-width: 6px; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; }
+
+.credit { padding: 24px 0 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+.credit a { color: inherit; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--primary); color: var(--on-primary); padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+.toast.show { opacity: 1; }
+[hidden] { display: none !important; }
+
+@media (max-width: 560px) {
+  .brand h1 { font-size: 26px; }
+  .clip .side { padding: 10px; }
+  .toolbar .legend { order: 2; width: 100%; margin: 0; }
+  #newBtn { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>DropDM</h1><span class="handle" id="handle"></span></div>
+    <p class="pulse" id="pulse">Checking status…</p>
+    <nav role="tablist">
+      <button role="tab" aria-selected="true" data-tab="automations">Automations</button>
+      <button role="tab" aria-selected="false" data-tab="activity">Activity</button>
+      <button role="tab" aria-selected="false" data-tab="setup">Setup</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-automations">
+      <div id="dryBanner" class="banner" hidden>Test mode is on. Your account is really connected and comments really arrive, but no DMs or replies are sent. They show up in Activity instead. Remove <b>DRY_RUN</b> from your variables to go live.</div>
+      <div class="toolbar">
+        <div class="legend">
+          <span><i style="background:var(--c-comment)"></i>Comment on a post</span>
+          <span><i style="background:var(--c-dm)"></i>DM keyword</span>
+          <span><i style="background:var(--c-story)"></i>Story reply</span>
+        </div>
+        <button class="btn primary" id="newBtn">New automation</button>
+      </div>
+      <div class="track" id="list"></div>
+
+      <div class="tester">
+        <h2>Try a message</h2>
+        <p>Type what someone might write and see which automation answers. Nothing gets sent.</p>
+        <div class="row">
+          <select id="testType" aria-label="Where it was written">
+            <option value="comment">As a comment</option>
+            <option value="dm">As a DM</option>
+            <option value="story_reply">As a story reply</option>
+          </select>
+          <input type="text" id="testText" placeholder="e.g. Prompt please 🙏" aria-label="Message text">
+          <button class="btn" id="testBtn" style="flex:0 0 auto">Check</button>
+        </div>
+        <div class="result" id="testResult"></div>
+      </div>
+    </section>
+
+    <section id="tab-activity" hidden>
+      <div class="toolbar"><h2 style="font-size:20px">Recent activity</h2><button class="btn" id="refreshLog">Refresh</button></div>
+      <div class="log" id="log"></div>
+    </section>
+
+    <section id="tab-setup" hidden>
+      <div class="steps" id="steps"></div>
+    </section>
+  </main>
+  <footer class="credit">DropDM is free and open source. Built by <a href="https://instagram.com/samadsmett" target="_blank" rel="noopener">@samadsmett</a>.</footer>
+</div>
+
+<div class="sheet" id="sheet" aria-hidden="true">
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <header><h2 id="sheetTitle">New automation</h2><button class="close" id="closeSheet" aria-label="Close">×</button></header>
+    <form id="form" onsubmit="return false">
+      <label class="f"><span>Name</span><input type="text" name="name" placeholder="e.g. Free guide giveaway" required></label>
+
+      <div class="f" style="margin-bottom:16px">
+        <span class="f-label">When someone…</span>
+        <div class="seg" id="triggerSeg">
+          <button type="button" data-v="comment"><i style="background:var(--c-comment)"></i>Comments</button>
+          <button type="button" data-v="dm"><i style="background:var(--c-dm)"></i>Sends a DM</button>
+          <button type="button" data-v="story_reply"><i style="background:var(--c-story)"></i>Replies to a story</button>
+        </div>
+      </div>
+
+      <div id="postPick" class="f" style="margin-bottom:16px">
+        <span class="f-label">On which post</span>
+        <div class="seg" id="postScope">
+          <button type="button" data-v="all">Any post or reel</button>
+          <button type="button" data-v="one">One specific post</button>
+        </div>
+        <div id="mediaWrap" hidden>
+          <div class="media-grid" id="mediaGrid"></div>
+          <span class="hint" id="mediaHint"></span>
+        </div>
+      </div>
+
+      <div class="f" style="margin-bottom:16px">
+        <span class="f-label">Containing</span>
+        <div class="seg" id="matchSeg">
+          <button type="button" data-v="contains">A keyword</button>
+          <button type="button" data-v="exact">Only the keyword</button>
+          <button type="button" data-v="any">Anything</button>
+        </div>
+        <span class="hint" id="matchHint"></span>
+      </div>
+
+      <label class="f" id="kwField"><span>Keywords</span><input type="text" name="keywords" placeholder="prompt, link, guide"><span class="hint">Separate with commas. Capital letters don't matter.</span></label>
+
+      <label class="f"><span>DM to send</span><textarea name="dm_text" placeholder="Here's the prompt you asked for 👇"></textarea></label>
+      <div class="row">
+        <label class="f"><span>Button label <span class="hint" style="display:inline">(optional)</span></span><input type="text" name="button_title" maxlength="20" placeholder="Get the prompt"></label>
+        <label class="f"><span>Button link</span><input type="url" name="button_url" placeholder="https://"></label>
+      </div>
+
+      <label class="f" id="publicField"><span>Public reply under the comment <span class="hint" style="display:inline">(optional)</span></span>
+        <textarea name="public_replies" style="min-height:76px" placeholder="Sent! Check your DMs 📩&#10;Just sent it over 🙌"></textarea>
+        <span class="hint">One per line. A different one is picked each time so it doesn't look robotic.</span></label>
+
+      <span class="f-label">Preview</span>
+      <div class="preview" aria-live="polite">
+        <div class="who" id="pvWho"></div>
+        <div class="bubble-in" id="pvIn"></div>
+        <div class="bubble-out" id="pvOut"></div>
+        <div class="bubble-btn" id="pvBtn" hidden></div>
+        <div class="public" id="pvPublic" hidden></div>
+      </div>
+
+      <div class="check"><div><b>Only once per person</b><span class="hint">Recommended. Stops repeat commenters getting spammed.</span></div><label class="switch"><input type="checkbox" name="once_per_user" checked aria-label="Only once per person"><span></span></label></div>
+      <div class="check"><div><b>On</b><span class="hint">Turn off to pause without deleting.</span></div><label class="switch"><input type="checkbox" name="active" checked aria-label="Automation on"><span></span></label></div>
+
+      <div class="err" id="formErr"></div>
+      <div class="actions">
+        <button type="button" class="btn danger" id="deleteBtn">Delete</button>
+        <button type="button" class="btn primary" id="saveBtn">Save automation</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (url, opts = {}) => {
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ago = t => {
+  if (!t) return 'never';
+  const d = (Date.now() - (typeof t === 'number' ? t : Date.parse(t.replace(' ', 'T') + 'Z'))) / 1000;
+  if (d < 60) return 'just now';
+  if (d < 3600) return `${Math.floor(d / 60)} min ago`;
+  if (d < 86400) return `${Math.floor(d / 3600)} h ago`;
+  return `${Math.floor(d / 86400)} d ago`;
+};
+const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); };
+const TRIGGER = { comment: 'Comment', dm: 'DM', story_reply: 'Story reply' };
+
+let status = {}, automations = [], media = null, editing = null;
+
+// ── tabs ──
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
+  ['automations', 'activity', 'setup'].forEach(t => $('#tab-' + t).hidden = t !== b.dataset.tab);
+  if (b.dataset.tab === 'activity') loadLog();
+  if (b.dataset.tab === 'setup') renderSetup();
+});
+
+// ── status line ──
+async function loadStatus() {
+  try { status = await api('/api/status'); } catch (e) { $('#pulse').textContent = e.message; return; }
+  $('#handle').textContent = status.username ? '@' + status.username : '';
+  $('#dryBanner').hidden = !status.dry_run;
+  const live = status.connected && status.has_token;
+  const t = status.today || {};
+  $('#pulse').innerHTML = live
+    ? `<span class="dot live"></span><b>Listening.</b> Last event ${esc(ago(status.last_webhook_at))}. ${status.sent_last_hour} of ${status.max_per_hour} DMs used this hour${status.queue ? `, ${status.queue} waiting` : ''}. ${t.sent || 0} sent in the last 24 h${t.failed ? `, <b>${t.failed} failed</b>` : ''}.`
+    : `<span class="dot off"></span><b>Not connected yet.</b> Open Setup to finish connecting your account.`;
+}
+
+// ── automations list ──
+async function loadAutomations() {
+  automations = await api('/api/automations');
+  const list = $('#list');
+  if (!automations.length) {
+    list.innerHTML = `<div class="empty"><p>No automations yet. Start with a comment keyword on your next reel.</p><button class="btn primary" onclick="openEditor()">Create your first automation</button></div>`;
+    return;
+  }
+  list.innerHTML = automations.map(a => {
+    const where = a.trigger_type === 'comment' ? (a.media_id ? `On ${esc(a.media_label || 'one post')}` : 'On any post') : TRIGGER[a.trigger_type];
+    const kws = a.match_mode === 'any' ? '<span class="kw">any message</span>' : a.keywords.map(k => `<span class="kw">${esc(k)}</span>`).join('');
+    return `<div class="clip ${a.active ? '' : 'paused'}" data-t="${a.trigger_type}">
+      <div class="label"></div>
+      <button class="body" onclick="openEditor(${a.id})" aria-label="Edit ${esc(a.name)}">
+        <h3>${esc(a.name)}</h3>
+        <div class="meta">${where}: ${esc(a.dm_text)}</div>
+        <div>${kws}</div>
+      </button>
+      <div class="side">
+        <label class="switch"><input type="checkbox" ${a.active ? 'checked' : ''} onchange="toggle(${a.id}, this.checked)" aria-label="${esc(a.name)} on"><span></span></label>
+        <span class="count">${a.sent_count} sent</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function toggle(id, on) {
+  try { await api(`/api/automations/${id}/active`, { method: 'PATCH', body: { active: on } }); toast(on ? 'Turned on' : 'Paused'); loadAutomations(); }
+  catch (e) { toast(e.message); }
+}
+
+// ── editor ──
+const form = $('#form');
+const segVal = id => $(`#${id} [aria-pressed="true"]`)?.dataset.v;
+function setSeg(id, v) { document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); }
+['triggerSeg', 'matchSeg', 'postScope'].forEach(id => document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => { setSeg(id, b.dataset.v); syncForm(); }));
+let selectedMedia = null;
+
+function openEditor(id) {
+  editing = id ? automations.find(a => a.id === id) : null;
+  const a = editing || { name: '', trigger_type: 'comment', match_mode: 'contains', keywords: [], dm_text: '', button_title: '', button_url: '', public_replies: [], once_per_user: true, active: true, media_id: null };
+  $('#sheetTitle').textContent = editing ? 'Edit automation' : 'New automation';
+  form.elements.name.value = a.name;
+  form.keywords.value = a.keywords.join(', ');
+  form.dm_text.value = a.dm_text;
+  form.button_title.value = a.button_title || '';
+  form.button_url.value = a.button_url || '';
+  form.public_replies.value = a.public_replies.join('\n');
+  form.once_per_user.checked = a.once_per_user;
+  form.active.checked = a.active;
+  setSeg('triggerSeg', a.trigger_type);
+  setSeg('matchSeg', a.match_mode);
+  setSeg('postScope', a.media_id ? 'one' : 'all');
+  selectedMedia = a.media_id ? { id: a.media_id, label: a.media_label } : null;
+  $('#deleteBtn').hidden = !editing;
+  $('#formErr').textContent = '';
+  $('#sheet').classList.add('open'); $('#sheet').setAttribute('aria-hidden', 'false');
+  syncForm();
+  setTimeout(() => form.elements.name.focus(), 50);
+}
+function closeEditor() { $('#sheet').classList.remove('open'); $('#sheet').setAttribute('aria-hidden', 'true'); }
+$('#closeSheet').onclick = closeEditor;
+$('#sheet').onclick = e => { if (e.target.id === 'sheet') closeEditor(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEditor(); });
+$('#newBtn').onclick = () => openEditor();
+
+async function loadMedia() {
+  if (media) return renderMedia();
+  $('#mediaHint').textContent = 'Loading your recent posts…';
+  try { media = await api('/api/media'); } catch (e) { media = []; $('#mediaHint').textContent = e.message; return; }
+  renderMedia();
+}
+function renderMedia() {
+  const g = $('#mediaGrid');
+  if (!media.length) { g.innerHTML = ''; $('#mediaHint').textContent = 'No posts found. Connect your account in Setup first.'; return; }
+  $('#mediaHint').textContent = selectedMedia ? `Selected: ${selectedMedia.label || selectedMedia.id}` : 'Tap the post this should run on.';
+  g.innerHTML = media.map(m => {
+    const img = m.thumbnail_url || (m.media_type !== 'VIDEO' ? m.media_url : '');
+    const label = (m.caption || '').split('\n')[0].slice(0, 40) || (m.media_product_type === 'REELS' ? 'Reel' : 'Post');
+    return `<button type="button" data-id="${m.id}" data-label="${esc(label)}" aria-pressed="${selectedMedia?.id === m.id}" aria-label="${esc(label)}">
+      ${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<span class="cap">${esc(label)}</span>`}</button>`;
+  }).join('');
+  g.querySelectorAll('button').forEach(b => b.onclick = () => { selectedMedia = { id: b.dataset.id, label: b.dataset.label }; renderMedia(); });
+}
+
+function syncForm() {
+  const t = segVal('triggerSeg'), m = segVal('matchSeg');
+  $('#postPick').hidden = t !== 'comment';
+  $('#publicField').hidden = t !== 'comment';
+  $('#kwField').hidden = m === 'any';
+  const one = t === 'comment' && segVal('postScope') === 'one';
+  $('#mediaWrap').hidden = !one;
+  if (one) loadMedia();
+  $('#matchHint').textContent = {
+    contains: 'Fires when the keyword appears anywhere, e.g. "can I get the prompt pls".',
+    exact: 'Fires only when the whole message is the keyword, e.g. just "prompt".',
+    any: t === 'comment' ? 'Every comment gets a DM. Best paired with one specific post.' : 'Every message gets this reply. Keep "Only once per person" on.',
+  }[m];
+  preview();
+}
+function preview() {
+  const t = segVal('triggerSeg'), m = segVal('matchSeg');
+  const kw = form.keywords.value.split(',')[0].trim() || 'prompt';
+  $('#pvWho').textContent = t === 'comment' ? 'They comment, then get this in their DMs' : t === 'story_reply' ? 'They reply to your story' : 'They DM you';
+  $('#pvIn').textContent = m === 'any' ? (t === 'comment' ? 'This is fire 🔥' : 'Hey!') : (m === 'exact' ? kw : `Can I get the ${kw} please`);
+  $('#pvOut').textContent = form.dm_text.value || 'Your message shows here.';
+  const hasBtn = !!form.button_url.value.trim();
+  $('#pvBtn').hidden = !hasBtn;
+  $('#pvBtn').textContent = form.button_title.value.trim() || 'Open link';
+  const pub = form.public_replies.value.split('\n').map(s => s.trim()).filter(Boolean);
+  $('#pvPublic').hidden = t !== 'comment' || !pub.length;
+  $('#pvPublic').textContent = pub.length ? `Public reply: ${pub[0]}` : '';
+}
+form.addEventListener('input', preview);
+
+$('#saveBtn').onclick = async () => {
+  const t = segVal('triggerSeg');
+  const one = t === 'comment' && segVal('postScope') === 'one';
+  if (one && !selectedMedia) { $('#formErr').textContent = 'Pick the post this should run on, or choose "Any post or reel".'; return; }
+  const body = {
+    name: form.elements.name.value, trigger_type: t, match_mode: segVal('matchSeg'),
+    keywords: form.keywords.value.split(',').map(s => s.trim()).filter(Boolean),
+    media_id: one ? selectedMedia.id : null, media_label: one ? selectedMedia.label : null,
+    dm_text: form.dm_text.value, button_title: form.button_title.value, button_url: form.button_url.value.trim(),
+    public_replies: form.public_replies.value.split('\n'),
+    once_per_user: form.once_per_user.checked, active: form.active.checked,
+  };
+  $('#saveBtn').disabled = true;
+  try {
+    await api(editing ? `/api/automations/${editing.id}` : '/api/automations', { method: editing ? 'PUT' : 'POST', body });
+    closeEditor(); toast('Automation saved'); loadAutomations();
+  } catch (e) { $('#formErr').textContent = e.message; }
+  finally { $('#saveBtn').disabled = false; }
+};
+$('#deleteBtn').onclick = async () => {
+  if (!editing || !confirm(`Delete "${editing.name}"? This can't be undone.`)) return;
+  await api(`/api/automations/${editing.id}`, { method: 'DELETE' });
+  closeEditor(); toast('Automation deleted'); loadAutomations();
+};
+
+// ── tester ──
+$('#testBtn').onclick = async () => {
+  const r = await api('/api/test', { method: 'POST', body: { trigger_type: $('#testType').value, text: $('#testText').value } });
+  $('#testResult').innerHTML = r.match
+    ? `<b>${esc(r.match.name)}</b> would reply: “${esc(r.match.dm_text)}”`
+    : `<span style="color:var(--muted)">Nothing would fire. Check your keywords, or note that "one specific post" automations only answer on that post.</span>`;
+};
+$('#testText').addEventListener('keydown', e => { if (e.key === 'Enter') $('#testBtn').click(); });
+
+// ── activity ──
+async function loadLog() {
+  const rows = await api('/api/activity?limit=150');
+  $('#log').innerHTML = rows.length ? rows.map(r => `<div class="ev">
+    <span class="tag ${r.trigger_type || ''}"></span>
+    <div style="min-width:0">
+      <div class="line1">${r.username ? '@' + esc(r.username) : 'Someone'} <span class="st-${r.status}">${{ sent: 'got the DM', queued: 'is in the queue', failed: "didn't get the DM", skipped: 'was skipped' }[r.status] || r.status}</span></div>
+      <div class="said">“${esc(r.incoming_text)}” → ${esc(r.automation_name || '')}</div>
+      ${r.detail ? `<div class="detail" style="${r.status === 'failed' ? '' : 'color:var(--muted)'}">${esc(r.detail)}</div>` : ''}
+    </div>
+    <div class="when">${ago(r.at)}</div></div>`).join('')
+    : `<div class="empty"><p>Nothing yet. When someone triggers an automation it shows up here.</p></div>`;
+}
+$('#refreshLog').onclick = loadLog;
+
+// ── setup ──
+function renderSetup() {
+  const s = status;
+  const step = (ok, title, text, extra = '') => `<div class="step ${ok === true ? 'done' : ok === false ? 'todo' : ''}"><div class="mark">${ok === true ? '✓' : ok === false ? '!' : '·'}</div><div><h3>${title}</h3><p>${text}</p>${extra}</div></div>`;
+  $('#steps').innerHTML = [
+    step(s.has_token, 'Access token', s.has_token ? 'Your Instagram token is in place.' : 'Add IG_ACCESS_TOKEN to your hosting variables, then redeploy.'),
+    step(s.signature_check, 'App secret', s.signature_check ? 'Events are checked to make sure they really come from Instagram.' : 'Add IG_APP_SECRET so only real Instagram events are accepted.'),
+    step(s.verify_token_set, 'Webhook address', s.verify_token_set ? 'Paste both of these into your Meta app’s “Configure webhooks” section.' : 'Add a VERIFY_TOKEN variable on your host, then paste these into Meta.',
+      `<span class="hint">Callback URL</span><code class="url">${esc(s.webhook_url)}</code><div class="row"><button class="btn" style="flex:0 0 auto" data-copy="${esc(s.webhook_url)}">Copy callback URL</button></div>${s.verify_token ? `<span class="hint" style="margin-top:12px">Verify token</span><code class="url">${esc(s.verify_token)}</code><div class="row"><button class="btn" style="flex:0 0 auto" data-copy="${esc(s.verify_token)}">Copy verify token</button></div>` : ''}`),
+    step(s.connected, 'Connect account', s.connected ? `Connected as @${esc(s.username)}. Run it again if you change accounts or tokens.` : 'Links your account and tells Instagram to start sending comments and messages here.',
+      `<div class="row"><button class="btn primary" style="flex:0 0 auto" id="connectBtn">${s.connected ? 'Reconnect' : 'Connect account'}</button></div>`),
+    step(s.last_webhook_at ? true : null, 'First event received', s.last_webhook_at ? `Last event ${ago(s.last_webhook_at)}.` : 'Comment on one of your posts from a different account. If nothing shows up within a minute, check the troubleshooting section of the setup guide.'),
+    step(null, 'Token renewal', `Renews itself every week so it never hits the 60-day expiry. Last renewed ${ago(s.token_refreshed_at)}.`,
+      `<div class="row"><button class="btn" style="flex:0 0 auto" id="refreshBtn">Renew now</button></div>`),
+  ].join('');
+  document.querySelectorAll('#steps [data-copy]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast('Copied')));
+  $('#connectBtn').onclick = async e => {
+    e.target.disabled = true;
+    try { const r = await api('/api/connect', { method: 'POST' }); toast(`Connected as @${r.username}`); await loadStatus(); renderSetup(); }
+    catch (err) { toast(err.message); e.target.disabled = false; }
+  };
+  $('#refreshBtn').onclick = async e => {
+    e.target.disabled = true;
+    try { await api('/api/refresh-token', { method: 'POST' }); toast('Token renewed'); await loadStatus(); renderSetup(); }
+    catch (err) { toast(err.message); e.target.disabled = false; }
+  };
+}
+
+loadStatus(); loadAutomations();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

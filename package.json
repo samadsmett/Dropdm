@@ -1,0 +1,27 @@
+{
+  "name": "dropdm",
+  "version": "1.0.0",
+  "description": "Free, self-hosted Instagram auto-DM: comment-to-DM, keyword DMs and story replies, with a dashboard. A ManyChat alternative you own.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.2"
+  },
+  "license": "MIT",
+  "author": "Samad Smett (https://instagram.com/samadsmett)",
+  "keywords": [
+    "instagram",
+    "dm",
+    "automation",
+    "manychat-alternative",
+    "comment-to-dm",
+    "creator-tools"
+  ]
+}

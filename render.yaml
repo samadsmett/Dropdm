@@ -1,0 +1,29 @@
+# One-click deploy for DropDM on Render.
+# The "Deploy to Render" button in the README reads this file.
+services:
+  - type: web
+    name: dropdm
+    runtime: node
+    plan: starter            # smallest always-on plan (0.5 CPU, 512 MB). Free plans sleep and can't keep data.
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /data
+      - key: DRY_RUN
+        value: "1"           # test mode: comments arrive, nothing is sent. Delete this variable to go live.
+      - key: VERIFY_TOKEN
+        generateValue: true  # random phrase; the dashboard shows it so you can paste it into Meta
+      - key: ADMIN_PASSWORD
+        sync: false          # you choose this when deploying; it's your dashboard login
+      - key: IG_APP_SECRET
+        sync: false          # from your Meta app: "Instagram app secret"
+      - key: IG_ACCESS_TOKEN
+        sync: false          # from your Meta app: "Generate token"
