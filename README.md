@@ -8,6 +8,8 @@ Someone comments a keyword on your reel, they get your link in their DMs. No mon
 
 Built by [@samadsmett](https://instagram.com/samadsmett).
 
+> **Don't want to set up a server and a Meta app?** A hosted version, where you just log in with Instagram, is in the works. **[Join the waitlist](https://quickreply-nsj2.onrender.com/waitlist)** and you'll hear first.
+
 ---
 
 ## What it does
